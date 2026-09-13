@@ -383,7 +383,7 @@ export default function POS() {
         .pos-cart { padding: 18px; display: flex; flex-direction: column; max-height: calc(100vh - 130px); position: sticky; top: 24px; }
         .pos-cart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
         .pos-cart-head h3 { font-family: var(--font-display); font-size: 15px; margin: 0; display: flex; align-items: center; gap: 7px; }
-        .pos-cart-items { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 80px; margin-bottom: 12px; }
+        .pos-cart-items { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 120px; margin-bottom: 12px; }
         .cart-line { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border-hairline-soft); }
         .cart-line-name { font-size: 12.5px; font-weight: 600; }
         .cart-line-price { font-size: 10.5px; color: var(--text-muted); }
@@ -407,10 +407,10 @@ export default function POS() {
           .hide-desktop { display: inline-flex; }
           .pos-cart-overlay {
             display: flex; position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 300;
-            align-items: flex-end; justify-content: center;
+            align-items: center; justify-content: center; padding: 20px;
           }
           .pos-cart-mobile-sheet { width: 100%; max-width: 480px; max-height: 88vh; }
-          .pos-cart-mobile-sheet .pos-cart { border-radius: 16px 16px 0 0; max-height: 88vh; position: static; }
+          .pos-cart-mobile-sheet .pos-cart { border-radius: var(--radius-lg); max-height: 88vh; position: static; }
         }
       `}</style>
     </PageShell>
