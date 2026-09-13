@@ -4,6 +4,7 @@ export default function Modal({ title, onClose, children, width = 480 }) {
   const modal = (
     <div
       onClick={onClose}
+      className="modal-overlay"
       style={{
         position: 'fixed',
         inset: 0,
@@ -18,6 +19,7 @@ export default function Modal({ title, onClose, children, width = 480 }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="modal-panel"
         style={{
           width: '100%',
           maxWidth: width,

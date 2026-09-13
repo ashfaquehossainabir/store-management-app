@@ -31,7 +31,7 @@ export default function Dashboard() {
       title={`Welcome back, ${user?.name?.split(' ')[0] || ''}`}
       subtitle="Here's how your store is doing today."
       actions={
-        <Link to="/pos" className="btn btn-primary">
+        <Link to="/pos" className="btn btn-primary btn-new-sale">
           <ShoppingBag size={15} /> New Sale
         </Link>
       }

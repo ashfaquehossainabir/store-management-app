@@ -23,6 +23,7 @@ export default function Users() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [deleting, setDeleting] = useState(null);
+  const [deactivating, setDeactivating] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -55,12 +56,28 @@ export default function Users() {
   };
 
   const toggleActive = async (u) => {
+    if (u.isActive) {
+      setDeactivating(u);
+      return;
+    }
     try {
-      await api.put(`/users/${u._id}`, { isActive: !u.isActive });
+      await api.put(`/users/${u._id}`, { isActive: true });
       load();
     } catch (err) {
       setError(err.response?.data?.message || 'Could not update user');
     }
+  };
+
+  const confirmDeactivate = async () => {
+    setBusy(true);
+    try {
+      await api.put(`/users/${deactivating._id}`, { isActive: false });
+      setDeactivating(null);
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not update user');
+      setDeactivating(null);
+    } finally { setBusy(false); }
   };
 
   const confirmDelete = async () => {
@@ -173,6 +190,17 @@ export default function Users() {
 
       {deleting && (
         <ConfirmModal title="Delete user?" message={`This will permanently remove "${deleting.name}"'s access.`} confirmLabel="Delete" busy={busy} onConfirm={confirmDelete} onClose={() => setDeleting(null)} />
+      )}
+
+      {deactivating && (
+        <ConfirmModal
+          title="Deactivate user?"
+          message={`"${deactivating.name}" will no longer be able to log in until reactivated.`}
+          confirmLabel="Deactivate"
+          busy={busy}
+          onConfirm={confirmDeactivate}
+          onClose={() => setDeactivating(null)}
+        />
       )}
     </PageShell>
   );
