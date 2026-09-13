@@ -380,7 +380,7 @@ export default function POS() {
         @media (max-width: 640px) { .pos-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } .pos-product-card { padding: 12px; min-height: 116px; } }
         @media (max-width: 380px) { .pos-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
 
-        .pos-cart { padding: 18px; display: flex; flex-direction: column; max-height: calc(100vh - 130px); position: sticky; top: 24px; }
+        .pos-cart { padding: 18px; display: flex; flex-direction: column; max-height: calc(100vh - 130px); overflow-y: auto; overflow-x: hidden; position: sticky; top: 24px; }
         .pos-cart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
         .pos-cart-head h3 { font-family: var(--font-display); font-size: 15px; margin: 0; display: flex; align-items: center; gap: 7px; }
         .pos-cart-items { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 120px; margin-bottom: 12px; }
