@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
@@ -14,6 +16,19 @@ import Settings from './pages/Settings';
 import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
+  const { loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+    const preloader = document.getElementById('app-preloader');
+    if (!preloader) return;
+    preloader.classList.add('ap-hide');
+    const remove = () => preloader.remove();
+    preloader.addEventListener('transitionend', remove, { once: true });
+    // Fallback in case the transitionend event doesn't fire (e.g. reduced motion).
+    setTimeout(remove, 500);
+  }, [loading]);
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
