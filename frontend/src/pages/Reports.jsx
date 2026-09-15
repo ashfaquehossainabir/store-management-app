@@ -166,7 +166,7 @@ export default function Reports() {
         .report-panel { padding: 20px; min-width: 0; margin-top: 20px; }
         .report-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
         .report-panel-head h3 { font-family: var(--font-display); font-size: 15px; margin: 0; }
-        .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
         .report-grid .report-panel { margin-top: 0; }
         .report-chart { display: flex; align-items: flex-end; gap: 6px; height: 160px; overflow-x: auto; padding-bottom: 2px; }
         .report-bar-wrap { flex: 1 0 22px; min-width: 22px; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; }
