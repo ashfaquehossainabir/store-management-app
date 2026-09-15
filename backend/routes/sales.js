@@ -44,6 +44,11 @@ router.get('/', async (req, res) => {
     if (to) query.createdAt.$lte = new Date(new Date(to).setHours(23, 59, 59, 999));
   }
 
+  if (req.query.export === 'true') {
+    const items = await Sale.find(query).sort({ createdAt: -1 }).limit(5000);
+    return res.json({ items, total: items.length, page: 1, pages: 1 });
+  }
+
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
 
@@ -204,6 +209,83 @@ router.patch('/:id/void', authorize('admin', 'manager'), async (req, res) => {
       }
       sale.status = 'cancelled';
       await sale.save({ session });
+      result = sale;
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  } finally {
+    session.endSession();
+  }
+});
+
+router.post('/:id/refund', authorize('admin', 'manager'), async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      const sale = await Sale.findById(req.params.id).session(session);
+      if (!sale) throw new Error('Invoice not found');
+      if (sale.status === 'cancelled') throw new Error('Cannot refund a voided invoice');
+      if (sale.status === 'refunded') throw new Error('Invoice is already fully refunded');
+
+      const { lines, reason } = req.body;
+      if (!Array.isArray(lines) || lines.length === 0) {
+        throw new Error('Select at least one item to refund');
+      }
+
+      const refundItems = [];
+      let amount = 0;
+
+      for (const line of lines) {
+        const idx = Number(line.index);
+        const qty = Number(line.quantity);
+        const item = sale.items[idx];
+        if (!item) throw new Error('Invalid line item');
+        if (!qty || qty <= 0) continue;
+        const alreadyRefunded = item.refundedQuantity || 0;
+        const available = item.quantity - alreadyRefunded;
+        if (qty > available) throw new Error(`Cannot refund more than ${available} of "${item.name}"`);
+
+        item.refundedQuantity = alreadyRefunded + qty;
+        const lineTotal = item.price * qty;
+        amount += lineTotal;
+
+        refundItems.push({
+          product: item.product,
+          name: item.name,
+          sku: item.sku,
+          price: item.price,
+          quantity: qty,
+          total: lineTotal,
+        });
+
+        if (item.product) {
+          await Product.findByIdAndUpdate(item.product, { $inc: { stock: qty } }, { session });
+        }
+      }
+
+      if (refundItems.length === 0) throw new Error('Select at least one item to refund');
+
+      sale.refundedAmount = (sale.refundedAmount || 0) + amount;
+      sale.refunds.push({
+        items: refundItems,
+        amount,
+        reason: reason || '',
+        refundedBy: req.user._id,
+        refundedByName: req.user.name,
+        createdAt: new Date(),
+      });
+
+      const fullyRefunded = sale.items.every((it) => (it.refundedQuantity || 0) >= it.quantity);
+      if (fullyRefunded) sale.status = 'refunded';
+
+      await sale.save({ session });
+
+      if (sale.customer) {
+        await Customer.findByIdAndUpdate(sale.customer, { $inc: { totalSpent: -amount } }, { session });
+      }
+
       result = sale;
     });
     res.json(result);

@@ -32,6 +32,11 @@ router.get('/', async (req, res) => {
   if (status) query.status = status;
   if (search) query.$or = [{ poNumber: new RegExp(search, 'i') }, { supplierName: new RegExp(search, 'i') }];
 
+  if (req.query.export === 'true') {
+    const items = await Purchase.find(query).sort({ createdAt: -1 }).limit(5000);
+    return res.json({ items, total: items.length, page: 1, pages: 1 });
+  }
+
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
 

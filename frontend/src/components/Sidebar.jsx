@@ -18,6 +18,8 @@ import {
   LogOut,
   X,
   Boxes,
+  History,
+  BarChart3,
 } from 'lucide-react';
 
 const COLLAPSE_KEY = 'sf-sidebar-collapsed';
@@ -61,12 +63,14 @@ export default function Sidebar({ isOpen, onClose }) {
         { to: '/', end: true, label: 'Dashboard', Icon: LayoutDashboard },
         { to: '/pos', label: 'Point of Sale', Icon: ShoppingCart },
         { to: '/invoices', label: 'Invoices', Icon: Receipt },
+        ...(isManager ? [{ to: '/reports', label: 'Reports', Icon: BarChart3 }] : []),
       ],
     },
     {
       heading: 'Inventory',
       items: [
         { to: '/products', label: 'Products', Icon: Package },
+        ...(isManager ? [{ to: '/products/stock-history', label: 'Stock History', Icon: History }] : []),
         { to: '/categories', label: 'Categories', Icon: Tags },
         ...(isManager ? [{ to: '/purchases', label: 'Purchase Orders', Icon: ClipboardList }] : []),
       ],

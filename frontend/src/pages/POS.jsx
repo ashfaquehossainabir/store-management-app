@@ -50,6 +50,7 @@ export default function POS() {
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [error, setError] = useState('');
   const [showCartMobile, setShowCartMobile] = useState(false);
+  const [scanMsg, setScanMsg] = useState('');
 
   useEffect(() => {
     api.get('/categories').then((res) => setCategories(res.data));
@@ -90,6 +91,31 @@ export default function POS() {
   };
 
   const removeLine = (productId) => setCart((prev) => prev.filter((l) => l.product !== productId));
+
+  const flashScanMsg = (msg) => {
+    setScanMsg(msg);
+    setTimeout(() => setScanMsg((m) => (m === msg ? '' : m)), 1600);
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key !== 'Enter') return;
+    const code = search.trim();
+    if (!code) return;
+    // A hardware barcode scanner types the code and sends Enter — try an exact barcode
+    // match first (against the products currently loaded for this search) so the item
+    // is added straight to the cart instead of just filtering the grid.
+    const exact = products.find((p) => p.barcode && p.barcode === code);
+    if (exact) {
+      e.preventDefault();
+      if (exact.stock <= 0) {
+        flashScanMsg(`${exact.name} is out of stock`);
+      } else {
+        addToCart(exact);
+        flashScanMsg(`Added ${exact.name}`);
+      }
+      setSearch('');
+    }
+  };
 
   const subtotal = useMemo(() => cart.reduce((sum, l) => sum + l.price * l.quantity, 0), [cart]);
   const discountAmount = discountType === 'percent' ? (subtotal * Number(discount || 0)) / 100 : Number(discount || 0);
@@ -233,7 +259,15 @@ export default function POS() {
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
             <div style={{ position: 'relative', flex: '1 1 220px' }}>
               <Search size={15} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products or scan barcode…" style={{ paddingLeft: 32 }} autoFocus />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Search products or scan barcode…"
+                style={{ paddingLeft: 32 }}
+                autoFocus
+              />
+              {scanMsg && <div className="pos-scan-toast">{scanMsg}</div>}
             </div>
             <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ width: 'auto', minWidth: 160 }}>
               <option value="">All categories</option>
@@ -313,6 +347,14 @@ export default function POS() {
       <style>{`
         .pos-layout { display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start; }
         .pos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+        .pos-scan-toast {
+          position: absolute; top: calc(100% + 6px); left: 0; z-index: 5;
+          max-width: min(280px, 90vw); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+          font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 7px;
+          background: color-mix(in srgb, var(--accent-cyan) 16%, var(--bg-panel-raised));
+          color: var(--accent-cyan); border: 1px solid var(--accent-cyan-dim);
+          box-shadow: var(--shadow-card-hover);
+        }
 
         .pos-product-card {
           position: relative;
