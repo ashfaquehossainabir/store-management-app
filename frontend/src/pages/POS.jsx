@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Minus, Trash2, ShoppingCart, X, UserPlus, PackageSearch } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, X, UserPlus, PackageSearch, PauseCircle, PlayCircle, Printer } from 'lucide-react';
 import PageShell from '../components/PageShell';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
@@ -52,6 +52,12 @@ export default function POS() {
   const [showCartMobile, setShowCartMobile] = useState(false);
   const [scanMsg, setScanMsg] = useState('');
 
+  const [parkedSales, setParkedSales] = useState([]);
+  const [showParkModal, setShowParkModal] = useState(false);
+  const [parkLabel, setParkLabel] = useState('');
+  const [showHeldModal, setShowHeldModal] = useState(false);
+  const [parkBusy, setParkBusy] = useState(false);
+
   useEffect(() => {
     api.get('/categories').then((res) => setCategories(res.data));
     api.get('/customers').then((res) => setCustomers(res.data));
@@ -60,7 +66,12 @@ export default function POS() {
       setTaxRate(res.data.taxRate || 0);
       setSettings(res.data);
     });
+    loadParkedSales();
   }, []);
+
+  const loadParkedSales = () => {
+    api.get('/parked-sales').then((res) => setParkedSales(res.data));
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -153,6 +164,64 @@ export default function POS() {
     }
   };
 
+  const openParkModal = () => {
+    if (cart.length === 0) return;
+    setParkLabel('');
+    setShowParkModal(true);
+  };
+
+  const submitPark = async (e) => {
+    e.preventDefault();
+    setParkBusy(true);
+    setError('');
+    try {
+      const customer = customers.find((c) => c._id === customerId);
+      await api.post('/parked-sales', {
+        label: parkLabel,
+        items: cart.map((l) => ({ product: l.product, name: l.name, sku: l.sku, price: l.price, quantity: l.quantity })),
+        customer: customerId || undefined,
+        customerName: customer?.name || '',
+      });
+      resetCheckoutFields();
+      setShowParkModal(false);
+      setShowCartMobile(false);
+      loadParkedSales();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not park this sale');
+    } finally {
+      setParkBusy(false);
+    }
+  };
+
+  const resumeParked = async (parked) => {
+    setParkBusy(true);
+    try {
+      const fresh = await Promise.all(
+        parked.items.map(async (item) => {
+          if (!item.product) return { ...item, maxStock: item.quantity };
+          try {
+            const res = await api.get(`/products/${item.product}`);
+            return { product: item.product, name: item.name, sku: item.sku, price: item.price, quantity: Math.min(item.quantity, Math.max(res.data.stock, 0)) || item.quantity, maxStock: res.data.stock };
+          } catch {
+            return { product: item.product, name: item.name, sku: item.sku, price: item.price, quantity: item.quantity, maxStock: item.quantity };
+          }
+        })
+      );
+      setCart(fresh.filter((l) => l.quantity > 0));
+      setCustomerId(parked.customer || '');
+      await api.delete(`/parked-sales/${parked._id}`);
+      loadParkedSales();
+      setShowHeldModal(false);
+    } finally {
+      setParkBusy(false);
+    }
+  };
+
+  const deleteParked = async (id) => {
+    await api.delete(`/parked-sales/${id}`);
+    loadParkedSales();
+  };
+
   const createCustomer = async (e) => {
     e.preventDefault();
     try {
@@ -170,7 +239,10 @@ export default function POS() {
     <div className="pos-cart card">
       <div className="pos-cart-head">
         <h3><ShoppingCart size={16} /> Current Sale</h3>
-        <button className="btn btn-sm hide-desktop" onClick={() => setShowCartMobile(false)} style={{ padding: 6 }}><X size={14} /></button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn btn-sm" onClick={openParkModal} disabled={cart.length === 0} title="Park this sale"><PauseCircle size={13} /></button>
+          <button className="btn btn-sm hide-desktop" onClick={() => setShowCartMobile(false)} style={{ padding: 6 }}><X size={14} /></button>
+        </div>
       </div>
 
       <div className="pos-cart-items">
@@ -276,6 +348,9 @@ export default function POS() {
             <button className="btn hide-desktop" onClick={() => setShowCartMobile(true)}>
               <ShoppingCart size={15} /> Cart ({cart.length})
             </button>
+            <button className="btn" onClick={() => setShowHeldModal(true)}>
+              <PlayCircle size={15} /> Held ({parkedSales.length})
+            </button>
           </div>
 
           {loading ? (
@@ -341,6 +416,50 @@ export default function POS() {
               <button type="submit" className="btn btn-primary">Add</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {showParkModal && (
+        <Modal title="Park This Sale" onClose={() => setShowParkModal(false)} width={380}>
+          <form onSubmit={submitPark} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
+              {cart.length} item{cart.length === 1 ? '' : 's'} · {formatMoney(subtotal, symbol)} — hold this cart and come back to it later.
+            </div>
+            <div>
+              <label>Label (optional)</label>
+              <input value={parkLabel} onChange={(e) => setParkLabel(e.target.value)} placeholder="e.g. Table 4, John's order…" autoFocus />
+            </div>
+            {error && <div style={{ color: 'var(--text-error)', fontSize: 12.5 }}>{error}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button type="button" className="btn" onClick={() => setShowParkModal(false)} disabled={parkBusy}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={parkBusy}>{parkBusy ? 'Parking…' : 'Park Sale'}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {showHeldModal && (
+        <Modal title="Held Sales" onClose={() => setShowHeldModal(false)} width={420}>
+          {parkedSales.length === 0 ? (
+            <div className="empty-state" style={{ padding: 30 }}>No parked sales right now.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {parkedSales.map((p) => (
+                <div key={p._id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 12px', background: 'var(--bg-inset)', borderRadius: 8 }}>
+                  <div style={{ flex: '1 1 140px', minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.label || `${p.items.length} item${p.items.length === 1 ? '' : 's'}`}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.customerName || 'Walk-in'} · {formatMoney(p.items.reduce((s, l) => s + l.price * l.quantity, 0), symbol)} · {p.parkedByName} · {new Date(p.createdAt).toLocaleTimeString()}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 'auto' }}>
+                    <button className="btn btn-sm btn-primary" onClick={() => resumeParked(p)} disabled={parkBusy}><PlayCircle size={13} /> Resume</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => deleteParked(p._id)} disabled={parkBusy}><Trash2 size={13} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Modal>
       )}
 

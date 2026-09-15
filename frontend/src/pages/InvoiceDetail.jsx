@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Download, ArrowLeft, Ban, DollarSign, Trash2, RotateCcw } from 'lucide-react';
+import { Download, ArrowLeft, Ban, DollarSign, Trash2, RotateCcw, Printer } from 'lucide-react';
 import PageShell from '../components/PageShell';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
@@ -24,6 +24,7 @@ export default function InvoiceDetail() {
   const [sale, setSale] = useState(null);
   const [loading, setLoading] = useState(true);
   const [symbol, setSymbol] = useState('$');
+  const [store, setStore] = useState(null);
   const [showPayModal, setShowPayModal] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
@@ -41,11 +42,13 @@ export default function InvoiceDetail() {
 
   useEffect(() => {
     load();
-    api.get('/settings').then((res) => setSymbol(res.data.currencySymbol || '$'));
+    api.get('/settings').then((res) => { setSymbol(res.data.currencySymbol || '$'); setStore(res.data); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const downloadPdf = () => downloadBlob(api.get(`/sales/${id}/pdf`, { responseType: 'blob' }), `${sale.invoiceNumber}.pdf`);
+
+  const printReceipt = () => window.print();
 
   const submitPayment = async (e) => {
     e.preventDefault();
@@ -128,6 +131,7 @@ export default function InvoiceDetail() {
       actions={
         <>
           <Link to="/invoices" className="btn"><ArrowLeft size={15} /> Back</Link>
+          <button className="btn" onClick={printReceipt}><Printer size={15} /> Print Receipt</button>
           <button className="btn btn-primary" onClick={downloadPdf}><Download size={15} /> Download PDF</button>
         </>
       }
@@ -233,6 +237,33 @@ export default function InvoiceDetail() {
         </div>
       </div>
 
+      <div id="receipt-print-area">
+        <div className="receipt-store-name">{store?.storeName || 'Store'}</div>
+        {store?.address && <div className="receipt-line">{store.address}</div>}
+        {store?.phone && <div className="receipt-line">{store.phone}</div>}
+        <div className="receipt-divider" />
+        <div className="receipt-line">{sale.invoiceNumber}</div>
+        <div className="receipt-line">{new Date(sale.createdAt).toLocaleString()}</div>
+        <div className="receipt-line">Cashier: {sale.cashierName}</div>
+        {sale.customerName && sale.customerName !== 'Walk-in Customer' && <div className="receipt-line">Customer: {sale.customerName}</div>}
+        <div className="receipt-divider" />
+        {sale.items.map((it, i) => (
+          <div className="receipt-item" key={i}>
+            <div className="receipt-item-name">{it.name} × {it.quantity}</div>
+            <div className="receipt-item-total mono">{formatMoney(it.total, symbol)}</div>
+          </div>
+        ))}
+        <div className="receipt-divider" />
+        <div className="receipt-item"><span>Subtotal</span><span className="mono">{formatMoney(sale.subtotal, symbol)}</span></div>
+        {sale.discount > 0 && <div className="receipt-item"><span>Discount</span><span className="mono">-{formatMoney(sale.discount, symbol)}</span></div>}
+        {sale.tax > 0 && <div className="receipt-item"><span>Tax</span><span className="mono">{formatMoney(sale.tax, symbol)}</span></div>}
+        <div className="receipt-item receipt-total"><span>Total</span><span className="mono">{formatMoney(sale.total, symbol)}</span></div>
+        <div className="receipt-item"><span>Paid</span><span className="mono">{formatMoney(sale.amountPaid, symbol)}</span></div>
+        {sale.dueAmount > 0 && <div className="receipt-item"><span>Due</span><span className="mono">{formatMoney(sale.dueAmount, symbol)}</span></div>}
+        <div className="receipt-divider" />
+        <div className="receipt-thanks">Thank you for your purchase!</div>
+      </div>
+
       {showPayModal && (
         <Modal title="Record Payment" onClose={() => setShowPayModal(false)} width={360}>
           <form onSubmit={submitPayment} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -330,6 +361,24 @@ export default function InvoiceDetail() {
         .invoice-side-item { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--text-secondary); }
         .invoice-side-item span:last-child { color: var(--text-primary); font-weight: 600; }
         @media (max-width: 900px) { .invoice-layout { grid-template-columns: 1fr; } .invoice-summary { max-width: none; } }
+
+        #receipt-print-area { display: none; }
+
+        @media print {
+          body * { visibility: hidden; }
+          #receipt-print-area, #receipt-print-area * { visibility: visible; }
+          #receipt-print-area {
+            display: block; position: absolute; top: 0; left: 0; width: 280px;
+            font-family: var(--font-mono), monospace; font-size: 11px; color: #000; padding: 10px;
+          }
+          .receipt-store-name { font-size: 14px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+          .receipt-line { text-align: center; font-size: 10.5px; }
+          .receipt-divider { border-top: 1px dashed #000; margin: 8px 0; }
+          .receipt-item { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; padding: 2px 0; }
+          .receipt-item-name { flex: 1; }
+          .receipt-total { font-weight: 700; font-size: 12px; border-top: 1px dashed #000; margin-top: 4px; padding-top: 6px; }
+          .receipt-thanks { text-align: center; margin-top: 10px; font-size: 11px; }
+        }
       `}</style>
     </PageShell>
   );

@@ -5,6 +5,7 @@ const Product = require('../models/Product');
 const Supplier = require('../models/Supplier');
 const Counter = require('../models/Counter');
 const StoreSettings = require('../models/StoreSettings');
+const logActivity = require('../utils/logActivity');
 const { protect, authorize } = require('../middleware/auth');
 const {
   newDocument,
@@ -137,9 +138,11 @@ router.delete('/:id', authorize('admin', 'manager'), async (req, res) => {
   const session = await mongoose.startSession();
   try {
     let deletedId;
+    let deletedPoNumber;
     await session.withTransaction(async () => {
       const purchase = await Purchase.findById(req.params.id).session(session);
       if (!purchase) throw new Error('Purchase order not found');
+      deletedPoNumber = purchase.poNumber;
 
       // If the order was already received, reverse the stock it added before removing it.
       if (purchase.status === 'received') {
@@ -154,6 +157,7 @@ router.delete('/:id', authorize('admin', 'manager'), async (req, res) => {
       deletedId = purchase._id;
     });
     res.json({ message: 'Purchase order deleted', _id: deletedId });
+    logActivity({ action: 'purchase_delete', entityType: 'purchase', entityLabel: deletedPoNumber, user: req.user });
   } catch (err) {
     res.status(400).json({ message: err.message });
   } finally {
@@ -199,6 +203,7 @@ router.patch('/:id/cancel', authorize('admin', 'manager'), async (req, res) => {
   if (purchase.status === 'received') return res.status(400).json({ message: 'Cannot cancel a received order' });
   purchase.status = 'cancelled';
   await purchase.save();
+  logActivity({ action: 'purchase_cancel', entityType: 'purchase', entityLabel: purchase.poNumber, user: req.user });
   res.json(purchase);
 });
 

@@ -20,6 +20,7 @@ import {
   Boxes,
   History,
   BarChart3,
+  ShieldCheck,
 } from 'lucide-react';
 
 const COLLAPSE_KEY = 'sf-sidebar-collapsed';
@@ -88,6 +89,7 @@ export default function Sidebar({ isOpen, onClose }) {
             heading: 'Admin',
             items: [
               { to: '/users', label: 'Team & Access', Icon: UserCog },
+              { to: '/activity-log', label: 'Activity Log', Icon: ShieldCheck },
               { to: '/settings', label: 'Store Settings', Icon: Settings },
             ],
           },

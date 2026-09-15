@@ -5,6 +5,7 @@ const Product = require('../models/Product');
 const Customer = require('../models/Customer');
 const Counter = require('../models/Counter');
 const StoreSettings = require('../models/StoreSettings');
+const logActivity = require('../utils/logActivity');
 const { protect, authorize } = require('../middleware/auth');
 const {
   newDocument,
@@ -211,6 +212,7 @@ router.patch('/:id/void', authorize('admin', 'manager'), async (req, res) => {
       await sale.save({ session });
       result = sale;
     });
+    logActivity({ action: 'sale_void', entityType: 'sale', entityLabel: result.invoiceNumber, user: req.user });
     res.json(result);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -288,6 +290,13 @@ router.post('/:id/refund', authorize('admin', 'manager'), async (req, res) => {
 
       result = sale;
     });
+    logActivity({
+      action: 'sale_refund',
+      entityType: 'sale',
+      entityLabel: result.invoiceNumber,
+      details: `${result.refunds[result.refunds.length - 1].amount.toFixed(2)} refunded`,
+      user: req.user,
+    });
     res.json(result);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -300,9 +309,11 @@ router.delete('/:id', authorize('admin', 'manager'), async (req, res) => {
   const session = await mongoose.startSession();
   try {
     let deletedId;
+    let deletedInvoiceNumber;
     await session.withTransaction(async () => {
       const sale = await Sale.findById(req.params.id).session(session);
       if (!sale) throw new Error('Invoice not found');
+      deletedInvoiceNumber = sale.invoiceNumber;
 
       // Only restore stock / customer totals if the sale was still active —
       // a voided sale already had its stock restored when it was cancelled.
@@ -325,6 +336,7 @@ router.delete('/:id', authorize('admin', 'manager'), async (req, res) => {
       deletedId = sale._id;
     });
     res.json({ message: 'Invoice deleted', _id: deletedId });
+    logActivity({ action: 'sale_delete', entityType: 'sale', entityLabel: deletedInvoiceNumber, user: req.user });
   } catch (err) {
     res.status(400).json({ message: err.message });
   } finally {

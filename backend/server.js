@@ -15,6 +15,8 @@ const dashboardRoutes = require('./routes/dashboard');
 const settingsRoutes = require('./routes/settings');
 const stockAdjustmentRoutes = require('./routes/stock-adjustments');
 const reportRoutes = require('./routes/reports');
+const activityLogRoutes = require('./routes/activity-log');
+const parkedSalesRoutes = require('./routes/parked-sales');
 
 const app = express();
 connectDB();
@@ -44,6 +46,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/stock-adjustments', stockAdjustmentRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/activity-log', activityLogRoutes);
+app.use('/api/parked-sales', parkedSalesRoutes);
 
 app.use('/api', (req, res) => {
   res.status(404).json({ message: 'Route not found' });

@@ -13,6 +13,7 @@ import POS from './pages/POS';
 import Invoices from './pages/Invoices';
 import InvoiceDetail from './pages/InvoiceDetail';
 import Reports from './pages/Reports';
+import ActivityLog from './pages/ActivityLog';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -78,6 +79,14 @@ export default function App() {
         element={
           <ProtectedRoute allowedRoles={['admin']}>
             <Users />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/activity-log"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <ActivityLog />
           </ProtectedRoute>
         }
       />
